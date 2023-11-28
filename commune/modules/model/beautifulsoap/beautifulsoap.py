@@ -12,7 +12,7 @@ from commune.modules.model.beautifulsoap.google_search.google_search import goog
 from googlesearch import search
 from urllib.parse import urlencode, urlunparse
 from urllib.request import urlopen, Request
-from yahoo import search as yahoo_search
+# from yahoo import search as yahoo_search
 
 class BeautifulSoapModule(c.Module):
 
@@ -196,12 +196,12 @@ class BeautifulSoapModule(c.Module):
 
         return result
 
-    def yahoo_search(self, keyword):
-        urls = []
-        for url in yahoo_search(keyword):
-            urls.append(url)
+    # def yahoo_search(self, keyword):
+    #     urls = []
+    #     for url in yahoo_search(keyword):
+    #         urls.append(url)
 
-        return urls
+    #     return urls
 
     def bing_search(self, keyword):
         l=[]
