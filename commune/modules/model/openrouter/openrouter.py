@@ -5,6 +5,7 @@ import os
 from typing import List
 
 class OpenRouterModule(c.Module):
+    whitelist = ['generate', 'models']
 
     def __init__(self,
                 url:str = "https://openrouter.ai/api/v1/chat/completions",
@@ -47,7 +48,27 @@ class OpenRouterModule(c.Module):
         
 
 
-    def generate(self, content: str, text_only:bool = True, model=None, history=None, trials=3 ):
+    def generate(self, content: str, text_only:bool = True, model=None, history=None, trials=1, api_key=None ):
+
+
+        # trials 
+        while trials > 1:
+            try:
+                response = self.generate(content=content, text_only=text_only, history=history, trials=1)
+            except Exception as e:
+                e = c.detailed_error(e)
+                trials -= 1
+                c.print('{t} trials Left')
+                c.print(e)
+                continue
+            
+            return response
+
+        assert trials > 0
+
+            
+                
+
         model = model or c.choice(self.models)['id']
         history = history or []
 
@@ -58,6 +79,7 @@ class OpenRouterModule(c.Module):
                 "messages": history + [{"role": self.role, "content": content} ]
             }
         
+
         t1 = c.time()
         response = requests.post(
             url=self.url,
@@ -72,8 +94,12 @@ class OpenRouterModule(c.Module):
         t2 = c.time()
         latency = t2 - t1
         response = json.loads(response.text)
-        tokens_per_word = 2
 
+        c.print(response)
+
+        tokens_per_word = 2
+        if 'choices' not in response:
+            return response
         output_text = response["choices"][0]["message"]["content"]
         output_tokens = output_text * tokens_per_word
 
@@ -108,12 +134,22 @@ class OpenRouterModule(c.Module):
         assert isinstance(api_key, str), "API key must be a string"
         self.api_key = api_key   
 
-    def test(self):
+    def test(self, text = 'Hello', model=None):
         t1 = c.time()
-        response = self.prompt("Hello")
+        if model == None:
+            model = c.choice(self.models)['id']
+        response = self.prompt(text, model=model, text_only=True)
+        tokens_per_second = self.num_tokens(response) / (c.time() - t1)
         latency = c.time() - t1
         assert isinstance(response, str)
-        return {"status": "success", "response": response, 'latency': latency}
+        return {"status": "success", "response": response, 'latency': latency, 'model': model , 'tokens_per_second': tokens_per_second}
+    
+
+    def test_models(self, search=None, timeout=10, models=None):
+        models = models or self.models(search=search)
+        futures = [c.submit(self.test, kwargs=dict(model=m['id']), timeout=timeout) for m in models]
+        results = c.wait(self.test)
+        return results
     
     @classmethod
     def model2info(cls, search:str = None):
@@ -147,4 +183,4 @@ class OpenRouterModule(c.Module):
 
     def num_tokens(self, text):
         return len(str(text).split(' '))
-    
+

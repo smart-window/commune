@@ -26,6 +26,7 @@ class Access(c.Module):
         self.stakes = {}
         self.state_path = state_path
         self.role2rate = role2rate
+        module.client_access = False
         c.thread(self.sync_loop_thread)
         
     def sync_loop_thread(self):
@@ -43,16 +44,14 @@ class Access(c.Module):
             if time_since_sync > self.config.sync_interval:
                 self.subspace = c.module('subspace')(network=self.config.network)
                 state['stakes'] = self.subspace.stakes(fmt='j', netuid=self.config.netuid)
-                state['block'] = self.subspace.block
                 state['sync_time'] = c.time()
-                self.put(self.state_path, state)
 
             self.stakes = state['stakes']
             until_sync = self.config.sync_interval - time_since_sync
 
-            response = {'block': state['block'],  
-                    'until_sync': until_sync,
-                    'time_since_sync': time_since_sync}
+            response = {  'until_sync': until_sync,
+                          'time_since_sync': time_since_sync
+                          }
             return response
         except Exception as e:
             e = c.detailed_error(e)
@@ -68,6 +67,7 @@ class Access(c.Module):
 
         if c.is_admin(address) or self.module.key.ss58_address == address:
             rate_limit = 10e42
+
         elif c.is_user(address):
             rate_limit = self.role2rate.get('user', 1)
         else:
